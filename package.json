@@ -1,0 +1,29 @@
+{
+  "name": "parknshop-price-dumping-script",
+  "version": "1.0.0",
+  "description": "A node.js script to dump the price and promotion information from parknshop.com",
+  "main": "parknshop.js",
+  "dependencies": {
+    "array-to-csv": "^1.0.2",
+    "async": "^2.0.1",
+    "cheerio": "^0.20.0",
+    "commander": "^2.9.0",
+    "mkdirp": "^0.5.1",
+    "querystring": "^0.2.0",
+    "slug": "^0.9.1",
+    "url": "^0.11.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": {
+    "name": "Brian Pow"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brianpow/node-parknshop-price-dumping-script.git"
+  },
+
+  "license": "GPL-3.0"
+}
