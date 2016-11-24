@@ -83,7 +83,7 @@ function httpdownloadAsync(url, filename, callback) {
       _httpdownloadAsync(url, filename, callback)
     }
     else {
-s      if (program.verbose) console.log('Loading cached ' + url + ' from ' + filename)
+      if (program.verbose) console.log('Loading cached ' + url + ' from ' + filename)
       loaded++
       var data = fs.readFileSync(filename, {
           encoding: 'utf8'
@@ -506,20 +506,20 @@ function getProducts(body, url, callback) {
   var brands = $('ul.catList').last().find('span.rightSpan').map(function() {
     return $(this).text().trim()
   }).get()
-  $('div.productCol').each(function(i, el) {
-      var uri = $(el).find('dd > a').eq(0).attr('href').trim().split('/')
+  $('div.product-container div.item').each(function(i, el) {
+      var uri = $(el).find('a').eq(0).attr('href').trim().split('/')
       var id = uri[4].match('\\d+$')[0]
       product = [
-        domain + $(el).find('dd > a').eq(0).attr('href').trim(), id, $(el).find('dd > a img').eq(0).attr('src').trim(), $(el).find('dt > strong').eq(0).text().trim(),
+        domain + $(el).find('a').eq(0).attr('href').trim(), id, $(el).find('div.photo img').eq(0).attr('src').trim(), $(el).find('div.name a').eq(0).text().trim().replace($(el).find('div.photo img').eq(0).attr('alt').replace(/-BP_\d+$/, ''),""),
 
         uri[1].substr(8),
 
         uri[2],
 
 
-        $(el).find('dd > a img').eq(0).attr('alt').replace(/-BP_\d+$/, ''),
+        $(el).find('div.photo img').eq(0).attr('alt').replace(/-BP_\d+$/, ''),
 
-        $(el).find('dt > span.colorGray').eq(0).text().trim(), $(el).find('.priceWrapper b').eq(0).text().replace('HK$', '').replace(',', '').trim(), $(el).find('.priceWrapper strong').eq(0).text().replace('HK$', '').replace(',', '').trim(), $(el).find('div').eq(0).text().trim(), $(el).find('dl.SpecialPro').map(function() {
+        $(el).find('div.volumn').eq(0).text().trim(), $(el).find('div.price-container div.rrp span').eq(0).text().replace('HK$', '').replace(',', '').trim(), $(el).find('div.price-container div.rrp').eq(0).next().text().replace('HK$', '').replace(',', '').trim(), $(el).find('div.special-offer').eq(0).text().trim(), $(el).find('dl.SpecialPro').map(function() {
           return $(this).text().trim()
         }).filter(function() {
           return this.trim().length
