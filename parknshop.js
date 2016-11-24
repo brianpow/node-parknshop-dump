@@ -286,7 +286,7 @@ function _httpdownload(url, filename, callback, finalCallback) {
     })
     response.on('end', function() {
       try {
-        if (!program.noCache) fs.writeFileSync(filename, str)
+        if (program.cache) fs.writeFileSync(filename, str)
       } catch (e) {
         console.error(e)
       }
