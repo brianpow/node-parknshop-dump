@@ -77,13 +77,13 @@ function httpdownload(url, filename, callback, finalCallback) {
 function httpdownloadAsync(url, filename, callback) {
   fs.exists(filename, function(exists) {
     if (program.forceDownload || !exists || exists && !fs.statSync(filename).size) {
-      if (program.verbosity) console.log('Downloading ' + url + ' as ' + filename)
+      if (program.verbose) console.log('Downloading ' + url + ' as ' + filename)
       var p = path.parse(filename)
       mkdirp.sync(p.dir)
       _httpdownloadAsync(url, filename, callback)
     }
     else {
-      if (program.verbosity) console.log('Loading cached ' + url + ' from ' + filename)
+s      if (program.verbose) console.log('Loading cached ' + url + ' from ' + filename)
       loaded++
       var data = fs.readFileSync(filename, {
           encoding: 'utf8'
