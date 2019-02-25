@@ -1,18 +1,21 @@
 'use strict'
 var program = require('commander')
 var toCSV = require('array-to-csv')
-var slug = require('slug')
 var mkdirp = require('mkdirp')
 var querystring = require('querystring')
-var http = require('http')
+//var http = require('http')
+//var RateLimiter = require('limiter').RateLimiter;
 var async = require('async')
 var fs = require('fs')
 var path = require('path')
 var cheerio = require('cheerio')
+var request = require('request') 
+request.defaults({jar: true})
+var throttledRequest = require('throttled-request')(request);
 var URL = require('url')
 var loaded = 0
 var stage = 0
-var domain = 'http://www.parknshop.com'
+var domain = 'https://www.parknshop.com'
 var categories = [],
   products = {},
   promotions = {},
@@ -21,53 +24,81 @@ var categories = [],
 var date = getLocalDate().toISOString().replace(/T.*/g, '')
 
 var productHeaders = {
-  'zt': '網頁連結\t編號\t圖片路徑\t品牌\t品牌\t貨品名稱\t貨品名稱\t尺寸\t建議售價\t售價\t備註\t其他優惠\t存貨\t可買數量'.split('\t'),
-  'en': 'url\tid\timage path\tBrand\tBrand\tName\tName\tSize\tRecommended Retail Price\tSelling Price\tRemark\tOther promotions\tStock\tQuantity you can buy'.split('\t')
+  'zh-hk': '網頁連結\t編號\t圖片路徑\t品牌\t品牌\t貨品名稱\t貨品名稱\t尺寸\t建議售價\t售價\t優惠\t可買數量'.split('\t'),
+  // 'en': 'url\tid\timage path\tBrand\tBrand\tName\tName\tSize\tRecommended Retail Price\tSelling Price\tRemark\tOther promotions\tStock\tQuantity you can buy'.split('\t')
+  'en': 'url\tid\timage path\tBrand\tBrand\tName\tName\tSize\tRecommended Retail Price\tSelling Price\tSpecial Offer\tQuantity you can buy'.split('\t')
+
 }
 var specialOfferHeaders = {
-  'zt': '額外折扣數量\t額外折扣\t平均單價'.split('\t'),
+  'zh-hk': '額外折扣數量\t額外折扣\t平均單價'.split('\t'),
   'en': 'Bulk Quantities\tBulk Discount\tAverage Discounted Unit Price'.split('\t')
 }
 var othersHeaders = {
-  'zt': '最低平均售價\t最大折扣\t平均每一元買到的單位'.split('\t'),
+  'zh-hk': '最低平均售價\t最大折扣\t平均每一元買到的單位'.split('\t'),
   'en': 'Lowest Average Price\tDiscount\tUnit per dollar'.split('\t')
 }
 var promotionHeaders = {
-  'zt': '推廣',
+  'zh-hk': '推廣',
   'en': 'promotion'
 }
 var finalHeaders = []
 var outputFilename = date + '_complete.txt'
-program.version('1.0.1').option('-s, --save <filename>', 'save file as <filename>. (default is "' + outputFilename + '")').option('-d, --debug', 'save debug file').option('-v, --verbose', 'print more details', verbosity, 0).option('-f, --force-download', 'don\'t load cached webpages, always download from remote server').option('-l, --limit <num>', 'limit max simultaneous downloads. Default is 5.', parseInt, 5).option('-n, --no-cache', 'don\'t keep downloaded webpages').option('-o, --output-format <txt,...>', 'support tab-separated values (txt), comma-separated values (csv), excel (xlsx) or JSON (json)', list, ['txt']).option('-a, --language <lang>', 'choose language (zt = Traditional Chinese, en = English)', /(zt|en)/, 'zt').option('-u, --user-agent <user-agent>', 'set user-agent', /.+/, 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:47.0) Gecko/20100101 Firefox/47.0').parse(process.argv)
+program.version('1.0.2')
+  .option('-s, --save <filename>', 'save file as <filename>.', outputFilename)
+  .option('-d, --debug', 'save debug file')
+  .option('-v, --verbose', 'print more details', verbosity, 0)
+  .option('-f, --force-download', 'don\'t load cached webpages, always download from remote server')
+  .option('-l, --limit <num>', 'limit max simultaneous downloads.', parseInt, 1)
+  .option('-w, --wait <millisecond>', 'Wait between each connection.', parseInt, 2000)
+  .option('-n, --no-cache', 'don\'t keep downloaded webpages')
+  .option('-c, --cache <path>', 'path of cache', 'cache')
+  .option('-r, --report <path>', 'path of report', 'report')
+  .option('-o, --output-format <txt,...>', 'support tab-separated values (txt), comma-separated values (csv), excel (xlsx) or JSON (json)', list, ['txt'])
+  .option('-a, --language <lang>', 'choose language (zh-hk = Traditional Chinese, en = English)', /(zh-hk|en)/, 'en')
+  .option('-u, --user-agent <user-agent>', 'set user-agent', /.+/, 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36')
+  .parse(process.argv)
 
-http.globalAgent.maxSockets = program.limit
+//http.globalAgent.maxSockets = program.limit
 banner()
-process.stdout.write('Step 1 of 4: Checking categories...')
-httpdownload(domain, date + path.sep + 'category' + path.sep + slug(domain, {
-    replacement: '-'
-  }), getCategory, downloadProducts)
+//console.log(toCSV([productHeaders[program.language]],","))
+if (!fs.existsSync(program.cache)) {
+  fs.mkdirSync(program.cache);
+}
+if (!fs.existsSync(program.report)) {
+  fs.mkdirSync(program.report);
+}
 
+throttledRequest.configure({
+  requests: program.limit,
+  milliseconds: 2000, //program.millisecond
+});
+process.stdout.write('Step 1 of 4: Checking categories...')
+let fullUrl = URL.resolve(domain, program.language)
+httpdownload(fullUrl, path.join(program.cache, date, 'category', encodeURIComponent(fullUrl)), getCategory, downloadProducts)
+//throttledRequest("http://example.org")
 function verbosity(v, total) {
   return total + 1
 }
 
 function httpdownload(url, filename, callback, finalCallback) {
-  fs.exists(filename, function(exists) {
+  fs.exists(filename, function (exists) {
     if (program.forceDownload || !exists || exists && !fs.statSync(filename).size) {
-      if (program.verbose) console.log('Downloading ' + url + ' as ' + filename)
+      if (program.verbose)
+        console.log('Downloading ' + url + ' as ' + filename + ' after ' + program.wait + ' milliseconds.')
       var p = path.parse(filename)
       mkdirp.sync(p.dir)
+      // setTimeout(function () {
       _httpdownload(url, filename, callback, finalCallback)
-    }
-    else {
-      if (program.verbose) console.log('Loading cached ' + url + ' named ' + filename)
+      // }, program.wait)
+    } else {
+      if (program.verbose)
+        console.log('Loading cached ' + url + ' named ' + filename)
       loaded++
       var data = fs.readFileSync(filename, {
-          encoding: 'utf8'
-        })
+        encoding: 'utf8'
+      })
 
       if (data) {
-
         callback(data, url, finalCallback)
       }
     }
@@ -75,19 +106,18 @@ function httpdownload(url, filename, callback, finalCallback) {
 }
 
 function httpdownloadAsync(url, filename, callback) {
-  fs.exists(filename, function(exists) {
+  fs.exists(filename, function (exists) {
     if (program.forceDownload || !exists || exists && !fs.statSync(filename).size) {
       if (program.verbose) console.log('Downloading ' + url + ' as ' + filename)
       var p = path.parse(filename)
       mkdirp.sync(p.dir)
       _httpdownloadAsync(url, filename, callback)
-    }
-    else {
+    } else {
       if (program.verbose) console.log('Loading cached ' + url + ' from ' + filename)
       loaded++
       var data = fs.readFileSync(filename, {
-          encoding: 'utf8'
-        })
+        encoding: 'utf8'
+      })
 
       if (data) {
 
@@ -100,12 +130,14 @@ function httpdownloadAsync(url, filename, callback) {
 function downloadProducts(categories) {
   console.log(categories.length + ' categories found.')
   process.stdout.write('Step 2 of 4: Checking products...')
-  async.each(categories, function(url, callback) {
-    url = updateQueryString(url, {
-        resultsForPage: 100
-      })
-    httpdownload(domain + url, date + path.sep + 'products' + path.sep + slug(domain + url), getProducts, callback)
-  }, function(err) {
+  async.each(categories, function (url, callback) {
+  let fullUrl=URL.resolve(domain,url)
+    fullUrl= updateQueryString(fullUrl, {
+      resultsForPage: 100
+    })
+    
+    httpdownload(fullUrl, path.join(program.cache, date, 'products', encodeURIComponent(fullUrl)), getProducts, callback)
+  }, function (err) {
     console.log(Object.keys(products).length + ' products found.')
     downloadProductsDetails()
   })
@@ -114,7 +146,7 @@ function downloadProducts(categories) {
 function saveFile(basename, formats, data) {
   var buff
   var names = []
-  formats.forEach(function(format) {
+  formats.forEach(function (format) {
     var name = basename + '.' + format
     switch (format) {
       case 'txt':
@@ -135,13 +167,13 @@ function saveFile(basename, formats, data) {
         var keys = Object.keys(data)
         var rows = keys.length
         var cols = 0
-        keys.forEach(function(key) {
-            if (cols < data[key].length) cols = data[key].length
-          })
+        keys.forEach(function (key) {
+          if (cols < data[key].length) cols = data[key].length
+        })
 
 
         var sheet1 = workbook.createSheet(date, cols, rows)
-        keys.forEach(function(key, i) {
+        keys.forEach(function (key, i) {
           for (var j = 0; j < data[key].length; j++)
             if (data[key][j]) sheet1.set(j + 1, i + 1, data[key][j])
         })
@@ -156,21 +188,19 @@ function saveFile(basename, formats, data) {
 function downloadProductsDetails() {
 
   var basename = date + '_products_only'
-  var filenames = saveFile(basename, program.outputFormat, products)
+  var filenames = saveFile(path.join(program.report, basename), program.outputFormat, products)
+  //console.log([productHeaders[program.language]].concat(products))
+  //var filenames = saveFile(path.join(program.report, basename), program.outputFormat, [productHeaders[program.language]].concat(products))
   if (filenames.length) console.log('Basic products information saved to ' + filenames.join(', '))
 
   loaded = 0
   process.stdout.write('Step 3 of 4: Checking special offer (It may take up to 2 hours, be patient)...')
 
-  async.each(products, function(product, calllback) {
+  async.each(products, function (product, calllback) {
     var url = product[0]
     var id = product[1]
-    var urlPromotion = url + '/showAction?isQuickView=false&codeVarSel=' + id
-    httpdownload({
-      url: urlPromotion,
-      method: 'POST'
-    }, date + path.sep + 'details' + path.sep + slug(urlPromotion), getProductDetail, calllback)
-  }, function(err) {
+    httpdownload(url, path.join(program.cache, date, 'details', encodeURIComponent(url)), getProductDetail, calllback)
+  }, function (err) {
     console.log('done.')
     process.stdout.write('Step 4 of 4: Merging Products with special offers...')
     cleanUp()
@@ -185,20 +215,20 @@ function getLocalDate(time) {
 
 function cleanUp() {
   process.stdout.write('Saving...')
-  var filenames = saveFile(date + '_complete', program.outputFormat, mergeProducts(products, specialOffers, promotions, others))
+  var filenames = saveFile(path.join(program.report, date + '_complete'), program.outputFormat, mergeProducts(products, specialOffers, promotions, others))
 
   console.log('saved to ' + filenames.join(', '))
   if (program.debug) {
     var basename = date + '_special_offers_only'
-    saveFile(basename, program.outputFormat, specialOffers)
+    saveFile(path.join(program.report, basename), program.outputFormat, specialOffers)
     var basename = date + '_promotions_only'
-    saveFile(basename, program.outputFormat, promotions)
+    saveFile(path.join(program.report, basename), program.outputFormat, promotions)
     var basename = date + '_stocks_only'
-    saveFile(basename, program.outputFormat, others)
+    saveFile(path.join(program.report, basename), program.outputFormat, others)
   } else {
-    var basename = date + '_products_only'
+    var basename = path.join(program.report, date + '_products_only')
     process.stdout.write('Removing...')
-    var filenames = program.outputFormat.map(function(ext) {
+    var filenames = program.outputFormat.map(function (ext) {
       var filename = basename + '.' + ext
       try {
         if (fs.accessSync(filename, fs.F_OK)) fs.unlinkSync(filename)
@@ -225,16 +255,16 @@ function updateQueryString(url, newQuery) {
 }
 
 function _httpdownloadAsync(url, filename, callback) {
-  var res = function(response) {
+  var res = function (response) {
     var str = ''
-    response.on('data', function(chunk) {
+    response.on('data', function (chunk) {
       str += chunk
     })
-    response.on('error', function(e) {
+    response.on('error', function (e) {
       console.log(e)
       callback(null, str)
     })
-    response.on('end', function() {
+    response.on('end', function () {
       try {
         fs.writeFileSync(filename, str)
       } catch (e) {
@@ -259,14 +289,14 @@ function _httpdownloadAsync(url, filename, callback) {
       path: url2.path,
       method: 'GET',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:47.0) Gecko/20100101 Firefox/47.0',
-        'Cookie': 'lang=' + program.language
+        'User-Agent': program.userAgent,
+        //'Cookie': 'lang=' + program.language
       }
     }, params), res)
-    req.on('error', function(e) {
-        console.log(e)
-        callback(e)
-      }).end()
+    req.on('error', function (e) {
+      console.log(e)
+      callback(e)
+    }).end()
   } catch (e) {
     console.error('Error when downloading ' + url)
     console.error(e)
@@ -275,16 +305,31 @@ function _httpdownloadAsync(url, filename, callback) {
 }
 
 function _httpdownload(url, filename, callback, finalCallback) {
-  var res = function(response) {
+  throttledRequest(url, function (error, response, body) {
+    if (error) {
+      console.error(error)
+      callback('', url, finalCallback)
+    } else {
+      if (program.cache)
+        fs.writeFileSync(filename, body)
+      callback(body, url, finalCallback)
+    }
+  })
+}
+
+function _httpdownload_old(url, filename, callback, finalCallback) {
+
+  var res = function (response) {
     var str = ''
-    response.on('data', function(chunk) {
+    response.on('data', function (chunk) {
+      console.log(chunk)
       str += chunk
     })
-    response.on('error', function(e) {
+    response.on('error', function (e) {
       console.log(e)
       callback(str, url, finalCallback)
     })
-    response.on('end', function() {
+    response.on('end', function () {
       try {
         if (program.cache) fs.writeFileSync(filename, str)
       } catch (e) {
@@ -309,14 +354,14 @@ function _httpdownload(url, filename, callback, finalCallback) {
       path: url2.path,
       method: 'GET',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:47.0) Gecko/20100101 Firefox/47.0',
+        'User-Agent': program.userAgent,
         'Cookie': 'lang=' + program.language
       }
     }, params), res)
-    req.on('error', function(e) {
-        console.log(e)
-        callback('', url, finalCallback)
-      }).end()
+    req.on('error', function (e) {
+      console.log(e)
+      callback('', url, finalCallback)
+    }).end()
   } catch (e) {
     console.error('Error when downloading ' + url)
     console.error(e)
@@ -328,31 +373,36 @@ var processed = 0
 
 function getProductDetail(body, url, callback) {
   if (time == 0) time = new Date().getTime()
+  if(body.indexOf("Access Denied") > -1)
+  {
+    console.error("Server overloaded when downloading "+ url)
+    process.exit(1)
+  }
   var $ = cheerio.load(body)
   var id = $('input[name=productCodePost]').attr('value')
 
-  var promotion = [id]
-  var specialOffer = [id]
-  var other = [id]
-  $('div.offer-table > div').each(function() {
-    specialOffer = specialOffer.concat([
-      $(this).attr('data-value'), $('span.offAmount', this).text().replace('HK$', '')
+  let specialOffer = []
+  $('div.offer-table > div').each(function () {
+    specialOffer.push([
+      $(this).attr('data-value'),
+      $('span.offAmount', this).text().replace('HK$', '').trim()
     ])
   })
+
   if (specialOffer.length > 1) specialOffers[id] = specialOffer
-  var re = new RegExp('>([^>]+)</a>', 'g'),
-    result
-  while (result = re.exec($('script').eq(5).text()))
-    promotion.push(result[1])
+
+  let promotion = []
+  $("div.TabPage-Special-Offers div.box").each(function () {
+    specialOffer.push([
+      $(this).find("div.title span").text(),
+      $(this).find("div.info").text(),
+      $(this).find("a").attr("href")
+    ])
+  })
+
   if (promotion.length > 1) promotions[id] = promotion
 
-
-
-  other = other.concat([
-      $('#stockLevel').attr('value'), $('#maxOrderQuantity').attr('value')
-    ])
-
-  others[id] = other
+  // …
   processed++
 
   if (processed % 50 == 0) {
@@ -365,15 +415,11 @@ function getProductDetail(body, url, callback) {
       process.stdout.cursorTo(0)
       process.stdout.write(Object.keys(products).length - processed + ' products left, elapsed time: ' + prettify(timeElapsed) + ', estimated remaining time: ' + prettify(timeleft) + '/ ' + timeleft.toFixed() + ' seconds.')
     }
-
-
-
   }
 
-
-  if (typeof callback == 'function') callback(null, specialOffer, promotion, other)
+  if (typeof callback == 'function') callback(null, specialOffer, promotion, [])
   return [
-    specialOffer, promotion, other
+    specialOffer, promotion, []
   ]
 }
 
@@ -415,7 +461,7 @@ function mergeProducts(products, specialOffers, promotions, others) {
   for (let i = 0; i < count2; i++)
     finalHeaders = finalHeaders.concat(promotionHeaders[program.language])
 
-  Object.keys(mergedProducts).forEach(function(id) {
+  Object.keys(mergedProducts).forEach(function (id) {
 
     var match = false
     var minPrice = mergedProducts[id][9]
@@ -486,72 +532,88 @@ function mergeProducts(products, specialOffers, promotions, others) {
   return newProducts
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 function getProducts(body, url, callback) {
 
   var $ = cheerio.load(body),
     product = []
-  var brands = $('ul.catList').last().find('span.rightSpan').map(function() {
-    return $(this).text().trim()
+  var brands = $('div.brandFilterStyle input[data-facet_query]').map(function () {
+    return $(this).attr("data-facet_query").substr(17)
   }).get()
-  $('div.product-container div.item').each(function(i, el) {
-      var uri = $(el).find('a').eq(0).attr('href').trim().split('/')
-      var id = uri[4].match('\\d+$')[0]
-      product = [
-        domain + $(el).find('a').eq(0).attr('href').trim(), id, $(el).find('div.photo img').eq(0).attr('src').trim(), $(el).find('div.name a').eq(0).text().trim().replace($(el).find('div.photo img').eq(0).attr('alt').replace(/-BP_\d+$/, ''),""),
+  if (program.debug)
+    fs.writeFileSync("brands.txt", brands.join("\n"))
+  let category=$("span.lastElement").text()
+  $('div.product-container div.item').each(function (i, el) {
+	let fullUrl=$(el).find('a').eq(0).attr('href').trim()
+	//if(fullUrl.indexOf("/" + program.language+ "/") == -1)
+	//{
+	//	if(program.verbose > 3)
+	//	console.log("Skipping url with wrong language: " + fullUrl )
+	//	return
+	//	}
+    var uri = fullUrl.split('/')
+    var id = uri[uri.length - 1].match('\\d+$')[0]
+    //'en': 'url\tid\timage path\tBrand\tBrand\tName\tName\tSize\tRecommended Retail Price\tSelling Price\tSpecial Offer\tNo Stock?\tQuantity you can buy'.split('\t')
+    let productName=$(el).find('div.photo img').eq(0).attr('alt').replace(/-BP_\d+$/, '')
+    product = [
+      URL.resolve(domain , fullUrl),
+      id,
+      $(el).find('div.photo img').eq(0).attr('data-original'),
+      category,
+      $(el).find('div.name a').eq(0).text().trim().replace(productName, ""),
+      //uri[1].substr(8),
+      uri[2],
+      productName,
+      $(el).find('span.sizeUnit').eq(0).text().trim(),
+      $(el).find('div.display-price div.rrp span').eq(0).text().replace('HK$', '').replace(',', '').trim(),
+      $(el).find('div.display-price div.discount').eq(0).text().replace('HK$', '').replace(',', '').trim(),
+      $(el).find('div.special-offer').eq(0).text().trim(),
+      // $(el).find('dl.SpecialPro').map(function () {
+      //   return $(this).text().trim()
+      // }).filter(function () {
+      //   return this.trim().length
+      // }).get().join(', ')
+      //$(el).find("span[data-arrivalsoon]").length,
+      $(el).find("input.maxOrderQuantity").attr("value")
+    ]
+    //$(el).find('div.special-offer').eq(0).text().trim(),
+    let bulkDiscount = product[10].match(/([\d.]+) \/ ([\d.]+)/)
+    if (bulkDiscount) {
+      bulkDiscount = eval(bulkDiscount[0])
+      product.push(bulkDiscount)
+    } else
+      product.push(product[9])
+    if (program.verbose > 3)
+      console.log(product)
+   products[id]=product
+  })
 
-        uri[1].substr(8),
-
-        uri[2],
-
-
-        $(el).find('div.photo img').eq(0).attr('alt').replace(/-BP_\d+$/, ''),
-
-        $(el).find('div.volumn').eq(0).text().trim(), $(el).find('div.price-container div.rrp span').eq(0).text().replace('HK$', '').replace(',', '').trim(), $(el).find('div.price-container div.rrp').eq(0).next().text().replace('HK$', '').replace(',', '').trim(), $(el).find('div.special-offer').eq(0).text().trim(), $(el).find('dl.SpecialPro').map(function() {
-          return $(this).text().trim()
-        }).filter(function() {
-          return this.trim().length
-        }).get().join(', ')
-      ]
-      if (product[3].substr(-3, 3) == '...') {
-
-
-
-
-        var tmp = product[3].substr(0, product[3].length - 3)
-        brands.forEach(function(brand) {
-          if (brand.indexOf(tmp) == 0) {
-            product[3] = brand
-            return false
-          }
-        })
-      }
-
-      products[id] = product
-    })
-
-  var nextUrl = $('a.iconNext').eq(0).attr('href')
-  if (nextUrl) {
-    if (nextUrl != 'javascript:void(0);') {
-      httpdownload(domain + nextUrl, date + path.sep + 'products' + path.sep + slug(domain + nextUrl, '-'), getProducts, callback)
+  let hasNextUrl = $('div.btn-show-more').eq(0).attr('data-hasnextpage')
+  if (hasNextUrl == "true") {
+    let nextUrl = $('div.btn-show-more').eq(0).attr('data-nextpageurl')
+    if (program.verbose > 2)
+      console.log("Found next url: " + nextUrl)
+    if (nextUrl != 'javascript:void(0);' && nextUrl.indexOf("/lc/") != -1) {
+    let fullUrl 
+		if(nextUrl.indexOf('/en/') == 0)
+			if(program.language != 'en')
+			fullUrl = URL.resolve(domain, "/" + program.language + nextUrl.substr(3))
+			else
+			fullUrl = URL.resolve(domain, nextUrl)
+		else if(nextUrl.indexOf('/zh-hk/') == 0)
+			if(program.language != 'zh-hk')
+			fullUrl = URL.resolve(domain, "/" + program.language + nextUrl.substr(6))
+			else
+			fullUrl = URL.resolve(domain, nextUrl)
+		else
+			fullUrl = URL.resolve(domain, program.language + nextUrl)
+      	//if (fullUrl.indexOf(program.language) == -1)
+		//fullUrl = URL.resolve(domain, program.language + nextUrl)
+      
+      httpdownload(fullUrl, path.join(program.cache, date, 'products', encodeURIComponent(fullUrl)), getProducts, callback)
     } else {
       callback()
     }
   } else {
-
-
     callback()
   }
 }
@@ -559,9 +621,15 @@ function getProducts(body, url, callback) {
 function getCategory(data, url, callback) {
   var $ = cheerio.load(data)
 
-  var categories = $('div.category a[href]').map(function() {
+  var categories = $('div.category a[href]').map(function () {
     return this.attribs.href
-  }).get()
+  }).get().filter(function (v) {
+    return v.indexOf("/lc/") != -1
+  })
+  if (program.debug) {
+    //console.log(categories)
+    fs.writeFileSync("categories.txt", categories.join("\n"))
+  }
   callback(categories)
 }
 
@@ -571,7 +639,7 @@ function banner() {
 
 function list(val) {
   var values = val.split(',')
-  return values.filter(function(value) {
+  return values.filter(function (value) {
     return /(txt|csv|json|xlsx)/.test(value)
   })
 }
