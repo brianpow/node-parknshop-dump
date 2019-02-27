@@ -10,8 +10,10 @@ var async = require('async')
 var fs = require('fs')
 var path = require('path')
 var cheerio = require('cheerio')
-var request = require('request') 
-request.defaults({jar: true})
+var request = require('request')
+request.defaults({
+  jar: true
+})
 var throttledRequest = require('throttled-request')(request);
 var URL = require('url')
 var loaded = 0
@@ -132,11 +134,11 @@ function downloadProducts(categories) {
   console.log(categories.length + ' categories found.')
   process.stdout.write('Step 2 of 4: Checking products...')
   async.each(categories, function (url, callback) {
-  let fullUrl=URL.resolve(domain,url)
-    fullUrl= updateQueryString(fullUrl, {
+    let fullUrl = URL.resolve(domain, url)
+    fullUrl = updateQueryString(fullUrl, {
       resultsForPage: 100
     })
-    
+
     httpdownload(fullUrl, path.join(program.cache, date, 'products', encodeURIComponent(fullUrl)), getProducts, callback)
   }, function (err) {
     console.log(Object.keys(products).length + ' products found.')
@@ -203,7 +205,7 @@ function downloadProductsDetails() {
     httpdownload(url, path.join(program.cache, date, 'details', encodeURIComponent(url)), getProductDetail, calllback)
   }, function (err) {
     console.log('done.')
-    process.stdout.write('Step 4 of 4: Merging Products with special offers...')
+    process.stdout.write('Step 4 of 4: Merging Products with special offers3')
     cleanUp()
     console.log('All done. Total time spent: ' + prettify(new Date().getTime() - time))
   })
@@ -374,9 +376,8 @@ var processed = 0
 
 function getProductDetail(body, url, callback) {
   if (time == 0) time = new Date().getTime()
-  if(body.indexOf("Access Denied") > -1)
-  {
-    console.error("Server overloaded when downloading "+ url)
+  if (body.indexOf("Access Denied") > -1) {
+    console.error("Server overloaded when downloading " + url)
     process.exit(1)
   }
   var $ = cheerio.load(body)
@@ -552,19 +553,19 @@ function getProducts(body, url, callback) {
   }
   let category = $("span.lastElement").text()
   $('div.product-container div.item').each(function (i, el) {
-	let fullUrl=$(el).find('a').eq(0).attr('href').trim()
-	//if(fullUrl.indexOf("/" + program.language+ "/") == -1)
-	//{
-	//	if(program.verbose > 3)
-	//	console.log("Skipping url with wrong language: " + fullUrl )
-	//	return
-	//	}
+    let fullUrl = $(el).find('a').eq(0).attr('href').trim()
+    //if(fullUrl.indexOf("/" + program.language+ "/") == -1)
+    //{
+    //	if(program.verbose > 3)
+    //	console.log("Skipping url with wrong language: " + fullUrl )
+    //	return
+    //	}
     var uri = fullUrl.split('/')
     var id = uri[uri.length - 1].match('\\d+$')[0]
     //'en': 'url\tid\timage path\tBrand\tBrand\tName\tName\tSize\tRecommended Retail Price\tSelling Price\tSpecial Offer\tNo Stock?\tQuantity you can buy'.split('\t')
-    let productName=$(el).find('div.photo img').eq(0).attr('alt').replace(/-BP_\d+$/, '')
+    let productName = $(el).find('div.photo img').eq(0).attr('alt').replace(/-BP_\d+$/, '')
     product = [
-      URL.resolve(domain , fullUrl),
+      URL.resolve(domain, fullUrl),
       id,
       $(el).find('div.photo img').eq(0).attr('data-original'),
       category,
@@ -593,7 +594,7 @@ function getProducts(body, url, callback) {
       product.push(product[9])
     if (program.verbose > 3)
       console.log(product)
-   products[id]=product
+    products[id] = product
   })
 
   let hasNextUrl = $('div.btn-show-more').eq(0).attr('data-hasnextpage')
@@ -602,22 +603,22 @@ function getProducts(body, url, callback) {
     if (program.verbose > 2)
       console.log("Found next url: " + nextUrl)
     if (nextUrl != 'javascript:void(0);' && nextUrl.indexOf("/lc/") != -1) {
-    let fullUrl 
-		if(nextUrl.indexOf('/en/') == 0)
-			if(program.language != 'en')
-			fullUrl = URL.resolve(domain, "/" + program.language + nextUrl.substr(3))
-			else
-			fullUrl = URL.resolve(domain, nextUrl)
-		else if(nextUrl.indexOf('/zh-hk/') == 0)
-			if(program.language != 'zh-hk')
-			fullUrl = URL.resolve(domain, "/" + program.language + nextUrl.substr(6))
-			else
-			fullUrl = URL.resolve(domain, nextUrl)
-		else
-			fullUrl = URL.resolve(domain, program.language + nextUrl)
-      	//if (fullUrl.indexOf(program.language) == -1)
-		//fullUrl = URL.resolve(domain, program.language + nextUrl)
-      
+      let fullUrl
+      if (nextUrl.indexOf('/en/') == 0)
+        if (program.language != 'en')
+          fullUrl = URL.resolve(domain, "/" + program.language + nextUrl.substr(3))
+      else
+        fullUrl = URL.resolve(domain, nextUrl)
+      else if (nextUrl.indexOf('/zh-hk/') == 0)
+        if (program.language != 'zh-hk')
+          fullUrl = URL.resolve(domain, "/" + program.language + nextUrl.substr(6))
+      else
+        fullUrl = URL.resolve(domain, nextUrl)
+      else
+        fullUrl = URL.resolve(domain, program.language + nextUrl)
+      //if (fullUrl.indexOf(program.language) == -1)
+      //fullUrl = URL.resolve(domain, program.language + nextUrl)
+
       httpdownload(fullUrl, path.join(program.cache, date, 'products', encodeURIComponent(fullUrl)), getProducts, callback)
     } else {
       callback()
