@@ -1,5 +1,6 @@
 'use strict'
 var program = require('commander')
+var util = require('util')
 var toCSV = require('array-to-csv')
 var mkdirp = require('mkdirp')
 var querystring = require('querystring')
@@ -42,7 +43,7 @@ var promotionHeaders = {
   'en': 'promotion'
 }
 var finalHeaders = []
-var outputFilename = date + '_complete.txt'
+var outputFilename = generateFilename('complete', false)
 program.version('1.0.2')
   .option('-s, --save <filename>', 'save file as <filename>.', outputFilename)
   .option('-d, --debug', 'save debug file')
@@ -57,7 +58,7 @@ program.version('1.0.2')
   .option('-a, --language <lang>', 'choose language (zh-hk = Traditional Chinese, en = English)', /(zh-hk|en)/, 'en')
   .option('-u, --user-agent <user-agent>', 'set user-agent', /.+/, 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36')
   .parse(process.argv)
-
+outputFilename = outputFilename.replace("${language}", program.language)
 //http.globalAgent.maxSockets = program.limit
 banner()
 //console.log(toCSV([productHeaders[program.language]],","))
@@ -187,7 +188,7 @@ function saveFile(basename, formats, data) {
 
 function downloadProductsDetails() {
 
-  var basename = date + '_products_only'
+  var basename = generateFilename('products_only', false)
   var filenames = saveFile(path.join(program.report, basename), program.outputFormat, products)
   //console.log([productHeaders[program.language]].concat(products))
   //var filenames = saveFile(path.join(program.report, basename), program.outputFormat, [productHeaders[program.language]].concat(products))
@@ -215,18 +216,18 @@ function getLocalDate(time) {
 
 function cleanUp() {
   process.stdout.write('Saving...')
-  var filenames = saveFile(path.join(program.report, date + '_complete'), program.outputFormat, mergeProducts(products, specialOffers, promotions, others))
+  var filenames = saveFile(path.join(program.report, generateFilename('complete', false)), program.outputFormat, mergeProducts(products, specialOffers, promotions, others))
 
   console.log('saved to ' + filenames.join(', '))
   if (program.debug) {
-    var basename = date + '_special_offers_only'
+    var basename = generateFilename('special_offers_only', false)
     saveFile(path.join(program.report, basename), program.outputFormat, specialOffers)
-    var basename = date + '_promotions_only'
+    var basename = generateFilename('promotions_only', false)
     saveFile(path.join(program.report, basename), program.outputFormat, promotions)
-    var basename = date + '_stocks_only'
+    var basename = generateFilename('stocks_only', false)
     saveFile(path.join(program.report, basename), program.outputFormat, others)
   } else {
-    var basename = path.join(program.report, date + '_products_only')
+    var basename = path.join(program.report, generateFilename('products_only', false))
     process.stdout.write('Removing...')
     var filenames = program.outputFormat.map(function (ext) {
       var filename = basename + '.' + ext
@@ -539,9 +540,17 @@ function getProducts(body, url, callback) {
   var brands = $('div.brandFilterStyle input[data-facet_query]').map(function () {
     return $(this).attr("data-facet_query").substr(17)
   }).get()
-  if (program.debug)
-    fs.writeFileSync("brands.txt", brands.join("\n"))
-  let category=$("span.lastElement").text()
+  if (program.debug) {
+    let filename = path.join(program.cache, date, generateFilename("brands.txt", false))
+    let cache = []
+    if (fs.existsSync(filename)) {
+      cache = fs.readFileSync(filename).toString().split("\n")
+      brands = uniq(cache.concat(brands))
+    }
+
+    fs.writeFileSync(path.join(program.cache, date, generateFilename("brands.txt", false)), brands.join("\n"))
+  }
+  let category = $("span.lastElement").text()
   $('div.product-container div.item').each(function (i, el) {
 	let fullUrl=$(el).find('a').eq(0).attr('href').trim()
 	//if(fullUrl.indexOf("/" + program.language+ "/") == -1)
@@ -628,7 +637,7 @@ function getCategory(data, url, callback) {
   })
   if (program.debug) {
     //console.log(categories)
-    fs.writeFileSync("categories.txt", categories.join("\n"))
+    fs.writeFileSync(path.join(program.cache, date, generateFilename("categories.txt", false)), categories.join("\n"))
   }
   callback(categories)
 }
@@ -642,4 +651,15 @@ function list(val) {
   return values.filter(function (value) {
     return /(txt|csv|json|xlsx)/.test(value)
   })
+}
+
+function generateFilename(type, includeExtension) {
+  return util.format("%s_%s_%s%s", getLocalDate().toISOString().replace(/T.*/g, ''), program.language, type, (includeExtension ? "." + program.outputFormat : ''))
+}
+
+function uniq(arr) {
+  return arr.reduce(function (a, b) {
+    if (a.indexOf(b) < 0) a.push(b);
+    return a;
+  }, []);
 }
