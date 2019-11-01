@@ -608,7 +608,7 @@ function getProducts(body, url, callback) {
       //if (fullUrl.indexOf(program.language) == -1)
       //fullUrl = URL.resolve(domain, program.language + nextUrl)
 
-      httpdownload(fullUrl, path.join(program.cache, date, 'products', encodeURIComponent(fullUrl)), getProducts, callback)
+      httpdownload(fullUrl, path.join(program.cache, date, 'products', encodeURIComponent(fullUrl)).substr(0,240), getProducts, callback)
     } else {
       callback()
     }
