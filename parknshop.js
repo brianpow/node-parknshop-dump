@@ -538,8 +538,8 @@ function getProducts(body, url, callback) {
 
   var $ = cheerio.load(body),
     product = []
-  var brands = $('div.brandFilterStyle input[data-facet_query]').map(function () {
-    return $(this).attr("data-facet_query").substr(17)
+  var brands = $('div.brand-container input[type=checkbox]').map(function () {
+    return $(this).attr("data-value")
   }).get()
   if (program.debug) {
     let filename = path.join(program.cache, date, generateFilename("brands.txt", false))
@@ -551,7 +551,7 @@ function getProducts(body, url, callback) {
 
     fs.writeFileSync(path.join(program.cache, date, generateFilename("brands.txt", false)), brands.join("\n"))
   }
-  let category = $("span.lastElement").text()
+  let category = $("#breadcrumb a").map(function(){return $(this).text().trim()}).get().join(" > ")
   $('div.product-container div.item').each(function (i, el) {
     let fullUrl = $(el).find('a').eq(0).attr('href').trim()
     //if(fullUrl.indexOf("/" + program.language+ "/") == -1)
@@ -563,13 +563,13 @@ function getProducts(body, url, callback) {
     var uri = fullUrl.split('/')
     var id = uri[uri.length - 1].match('\\d+$')[0]
     //'en': 'url\tid\timage path\tBrand\tBrand\tName\tName\tSize\tRecommended Retail Price\tSelling Price\tSpecial Offer\tNo Stock?\tQuantity you can buy'.split('\t')
-    let productName = $(el).find('div.photo img').eq(0).attr('alt').replace(/-BP_\d+$/, '')
+    let productName = $(el).find('div.name p').text()
     product = [
       URL.resolve(domain, fullUrl),
       id,
-      $(el).find('div.photo img').eq(0).attr('data-original'),
+      $(el).find('img.lazy').eq(0).attr('src'),
       category,
-      $(el).find('div.name a').eq(0).text().trim().replace(productName, ""),
+      category, //$(el).find('div.name a').eq(0).text().trim().replace(productName, ""),
       //uri[1].substr(8),
       uri[2],
       productName,
@@ -596,26 +596,15 @@ function getProducts(body, url, callback) {
       console.log(product)
     products[id] = product
   })
-
-  let hasNextUrl = $('div.btn-show-more').eq(0).attr('data-hasnextpage')
+""
+  let hasNextUrl = $('div.showMore').eq(0).attr('data-hasnextpage')
   if (hasNextUrl == "true") {
-    let nextUrl = $('div.btn-show-more').eq(0).attr('data-nextpageurl')
+    let nextUrl = $('div.showMore').eq(0).attr('data-nextpageurl')
     if (program.verbose > 2)
       console.log("Found next url: " + nextUrl)
-    if (nextUrl != 'javascript:void(0);' && nextUrl.indexOf("/lc/") != -1) {
+    if (nextUrl != 'javascript:void(0);' && nextUrl.indexOf("/c/") != -1) {
       let fullUrl
-      if (nextUrl.indexOf('/en/') == 0)
-        if (program.language != 'en')
-          fullUrl = URL.resolve(domain, "/" + program.language + nextUrl.substr(3))
-      else
-        fullUrl = URL.resolve(domain, nextUrl)
-      else if (nextUrl.indexOf('/zh-hk/') == 0)
-        if (program.language != 'zh-hk')
-          fullUrl = URL.resolve(domain, "/" + program.language + nextUrl.substr(6))
-      else
-        fullUrl = URL.resolve(domain, nextUrl)
-      else
-        fullUrl = URL.resolve(domain, program.language + nextUrl)
+      fullUrl = URL.resolve(domain, program.language + nextUrl)
       //if (fullUrl.indexOf(program.language) == -1)
       //fullUrl = URL.resolve(domain, program.language + nextUrl)
 
@@ -631,10 +620,10 @@ function getProducts(body, url, callback) {
 function getCategory(data, url, callback) {
   var $ = cheerio.load(data)
 
-  var categories = $('div.category a[href]').map(function () {
+  var categories = $('a[href*="/c/"]').map(function () {
     return this.attribs.href
   }).get().filter(function (v) {
-    return v.indexOf("/lc/") != -1
+    return /\/c\/\d+[1-9]$/.test(v)
   })
   if (program.debug) {
     //console.log(categories)
