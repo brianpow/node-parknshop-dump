@@ -63,7 +63,7 @@ program.version('1.0.2')
 outputFilename = outputFilename.replace("${language}", program.language)
 //http.globalAgent.maxSockets = program.limit
 banner()
-//console.log(toCSV([productHeaders[program.language]],","))
+
 if (!fs.existsSync(program.cache)) {
   fs.mkdirSync(program.cache);
 }
@@ -78,7 +78,7 @@ throttledRequest.configure({
 process.stdout.write('Checking categories...')
 let fullUrl = URL.resolve(domain, program.language)
 httpdownload(fullUrl, path.join(program.cache, date, 'category', encodeURIComponent(fullUrl)), getCategory, downloadProducts)
-//throttledRequest("http://example.org")
+
 function verbosity(v, total) {
   return total + 1
 }
@@ -142,15 +142,14 @@ function downloadProducts(categories) {
     httpdownload(fullUrl, path.join(program.cache, date, 'products', encodeURIComponent(fullUrl)), getProducts, callback)
   }, function (err) {
     console.log(Object.keys(products).length + ' products found.')
-    if(program.downloadDetails)
+    if (program.downloadDetails)
       downloadProductsDetails()
-    else
-    {
+    else {
       var basename = generateFilename('products_only', false)
-      let data=Object.assign(products)
-      data[0]=productHeaders[program.language]
+      let data = Object.assign(products)
+      data[0] = productHeaders[program.language]
       var filenames = saveFile(path.join(program.report, basename), program.outputFormat, data)
-      
+
       if (filenames.length) console.log('Basic products information saved to ' + filenames.join(', '))
       console.log('All done. Total time spent: ' + prettify(new Date().getTime() - time))
     }
@@ -162,43 +161,43 @@ function saveFile(basename, formats, data) {
   var names = []
   formats.forEach(function (format) {
     var name = basename + '.' + format
-    try{
+    try {
       switch (format) {
-      case 'txt':
-        fs.writeFileSync(name, toCSV(data, '\t'))
-        names.push(name)
-        break
-      case 'csv':
-        fs.writeFileSync(name, toCSV(data, ','))
-        names.push(name)
-        break
-      case 'json':
-        fs.writeFileSync(name, JSON.stringify(data))
-        names.push(name)
-        break
-      case 'xlsx':
-        const excel = require('msexcel-builder')
-        var workbook = excel.createWorkbook(process.cwd(), name)
-        var keys = Object.keys(data)
-        var rows = keys.length
-        var cols = 0
-        keys.forEach(function (key) {
-          if (cols < data[key].length) cols = data[key].length
-        })
+        case 'txt':
+          fs.writeFileSync(name, toCSV(data, '\t'))
+          names.push(name)
+          break
+        case 'csv':
+          fs.writeFileSync(name, toCSV(data, ','))
+          names.push(name)
+          break
+        case 'json':
+          fs.writeFileSync(name, JSON.stringify(data))
+          names.push(name)
+          break
+        case 'xlsx':
+          const excel = require('msexcel-builder')
+          var workbook = excel.createWorkbook(process.cwd(), name)
+          var keys = Object.keys(data)
+          var rows = keys.length
+          var cols = 0
+          keys.forEach(function (key) {
+            if (cols < data[key].length) cols = data[key].length
+          })
 
 
-        var sheet1 = workbook.createSheet(date, cols, rows)
-        keys.forEach(function (key, i) {
-          for (var j = 0; j < data[key].length; j++)
-            if (data[key][j]) sheet1.set(j + 1, i + 1, data[key][j])
-        })
-        workbook.saveSync();
-        names.push(name)
-        break
+          var sheet1 = workbook.createSheet(date, cols, rows)
+          keys.forEach(function (key, i) {
+            for (var j = 0; j < data[key].length; j++)
+              if (data[key][j]) sheet1.set(j + 1, i + 1, data[key][j])
+          })
+          workbook.saveSync();
+          names.push(name)
+          break
+      }
+    } catch (error) {
+      console.error(error)
     }
-    }catch(error){
-    console.error(error)
-  }
   })
   return names
 }
@@ -322,11 +321,10 @@ function _httpdownload(url, filename, callback, finalCallback) {
       console.error(error)
       callback('', url, finalCallback)
     } else {
-      try{
-      if (program.cache)
-        fs.writeFileSync(filename, body)
-      }catch(error)
-      {
+      try {
+        if (program.cache)
+          fs.writeFileSync(filename, body)
+      } catch (error) {
         console.error(error)
       }
       callback(body, url, finalCallback)
@@ -386,7 +384,7 @@ function _httpdownload_old(url, filename, callback, finalCallback) {
   }
 }
 var time = new Date().getTime()
-  
+
 var processed = 0
 
 function getProductDetail(body, url, callback) {
@@ -565,7 +563,9 @@ function getProducts(body, url, callback) {
 
     fs.writeFileSync(path.join(program.cache, date, generateFilename("brands.txt", false)), brands.join("\n"))
   }
-  let category = $("#breadcrumb a").map(function(){return $(this).text().trim()}).get().join(" > ")
+  let category = $("#breadcrumb a").map(function () {
+    return $(this).text().trim()
+  }).get().join(" > ")
   $('div.product-container div.item').each(function (i, el) {
     let fullUrl = $(el).find('a').eq(0).attr('href').trim()
     //if(fullUrl.indexOf("/" + program.language+ "/") == -1)
@@ -578,7 +578,7 @@ function getProducts(body, url, callback) {
     var id = uri[uri.length - 1].match('\\d+$')[0]
     //'en': 'url\tid\timage path\tBrand\tBrand\tName\tName\tSize\tRecommended Retail Price\tSelling Price\tSpecial Offer\tNo Stock?\tQuantity you can buy'.split('\t')
     let productName = $(el).find('div.name p').text()
-  
+
     product = [
       URL.resolve(domain, fullUrl),
       id,
@@ -593,7 +593,7 @@ function getProducts(body, url, callback) {
       $(el).find('div.display-price div.discount').eq(0).text().replace('HK$', '').replace(',', '').trim(),
       $(el).find('div.special-offer').eq(0).text().trim()
     ]
-    
+
     let bulkDiscount = product[10].match(/([\d.]+) \/ ([\d.]+)/)
     if (bulkDiscount) {
       bulkDiscount = eval(bulkDiscount[0])
@@ -611,12 +611,8 @@ function getProducts(body, url, callback) {
     if (program.verbose > 2)
       console.log("Found next url: " + nextUrl)
     if (nextUrl != 'javascript:void(0);' && nextUrl.indexOf("/c/") != -1) {
-      let fullUrl
-      fullUrl = URL.resolve(domain, program.language + nextUrl)
-      //if (fullUrl.indexOf(program.language) == -1)
-      //fullUrl = URL.resolve(domain, program.language + nextUrl)
-
-      httpdownload(fullUrl, path.join(program.cache, date, 'products', encodeURIComponent(fullUrl)).substr(0,240), getProducts, callback)
+      let fullUrl = URL.resolve(domain, program.language + nextUrl)
+      httpdownload(fullUrl, path.join(program.cache, date, 'products', encodeURIComponent(fullUrl)).substr(0, 240), getProducts, callback)
     } else {
       callback()
     }
