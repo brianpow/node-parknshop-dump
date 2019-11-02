@@ -1,50 +1,50 @@
 'use strict'
-var program = require('commander')
-var util = require('util')
-var toCSV = require('array-to-csv')
-var mkdirp = require('mkdirp')
-var querystring = require('querystring')
+const program = require('commander')
+const util = require('util')
+const toCSV = require('array-to-csv')
+const mkdirp = require('mkdirp')
+const querystring = require('querystring')
 //var http = require('http')
 //var RateLimiter = require('limiter').RateLimiter;
-var async = require('async')
-var fs = require('fs')
-var path = require('path')
-var cheerio = require('cheerio')
-var request = require('request')
+const async = require('async')
+const fs = require('fs')
+const path = require('path')
+const cheerio = require('cheerio')
+let request = require('request')
 request.defaults({
   jar: true
 })
-var throttledRequest = require('throttled-request')(request);
-var URL = require('url')
-var loaded = 0
-var stage = 0
-var domain = 'https://www.parknshop.com'
-var categories = [],
+const throttledRequest = require('throttled-request')(request);
+const URL = require('url')
+let loaded = 0
+let stage = 0
+let domain = 'https://www.parknshop.com'
+let categories = [],
   products = {},
   promotions = {},
   specialOffers = {},
   others = {}
-var date = getLocalDate().toISOString().replace(/T.*/g, '')
+let date = getLocalDate().toISOString().replace(/T.*/g, '')
 
-var productHeaders = {
+let productHeaders = {
   'zh-hk': '網頁連結\t編號\t圖片路徑\t類別\t品牌\t貨品名稱\t貨品名稱\t尺寸\t建議售價\t售價\t優惠'.split('\t'),
   'en': 'url\tid\timage path\tCatagories\tBrand\tName\tName\tSize\tRecommended Retail Price\tSelling Price\tSpecial Offer'.split('\t')
 }
 
-var specialOfferHeaders = {
+let specialOfferHeaders = {
   'zh-hk': '額外折扣數量\t額外折扣\t平均單價'.split('\t'),
   'en': 'Bulk Quantities\tBulk Discount\tAverage Discounted Unit Price'.split('\t')
 }
-var othersHeaders = {
+let othersHeaders = {
   'zh-hk': '最低平均售價\t最大折扣\t平均每一元買到的單位'.split('\t'),
   'en': 'Lowest Average Price\tDiscount\tUnit per dollar'.split('\t')
 }
-var promotionHeaders = {
+let promotionHeaders = {
   'zh-hk': '推廣',
   'en': 'promotion'
 }
-var finalHeaders = []
-var outputFilename = generateFilename('complete', false)
+let finalHeaders = []
+let outputFilename = generateFilename('complete', false)
 program.version('1.0.2')
   .option('-s, --save <filename>', 'save file as <filename>.', outputFilename)
   .option('-D, --download-details', 'Download products detail and check for additional offer. (Warning: take lots of time)')
@@ -88,7 +88,7 @@ function httpdownload(url, filename, callback, finalCallback) {
     if (program.forceDownload || !exists || exists && !fs.statSync(filename).size) {
       if (program.verbose)
         console.log('Downloading ' + url + ' as ' + filename + ' after ' + program.wait + ' milliseconds.')
-      var p = path.parse(filename)
+      let p = path.parse(filename)
       mkdirp.sync(p.dir)
       // setTimeout(function () {
       _httpdownload(url, filename, callback, finalCallback)
@@ -97,7 +97,7 @@ function httpdownload(url, filename, callback, finalCallback) {
       if (program.verbose)
         console.log('Loading cached ' + url + ' named ' + filename)
       loaded++
-      var data = fs.readFileSync(filename, {
+      let data = fs.readFileSync(filename, {
         encoding: 'utf8'
       })
 
@@ -112,13 +112,13 @@ function httpdownloadAsync(url, filename, callback) {
   fs.exists(filename, function (exists) {
     if (program.forceDownload || !exists || exists && !fs.statSync(filename).size) {
       if (program.verbose) console.log('Downloading ' + url + ' as ' + filename)
-      var p = path.parse(filename)
+      let p = path.parse(filename)
       mkdirp.sync(p.dir)
       _httpdownloadAsync(url, filename, callback)
     } else {
       if (program.verbose) console.log('Loading cached ' + url + ' from ' + filename)
       loaded++
-      var data = fs.readFileSync(filename, {
+      let data = fs.readFileSync(filename, {
         encoding: 'utf8'
       })
 
@@ -145,10 +145,10 @@ function downloadProducts(categories) {
     if (program.downloadDetails)
       downloadProductsDetails()
     else {
-      var basename = generateFilename('products_only', false)
+      let basename = generateFilename('products_only', false)
       let data = Object.assign(products)
       data[0] = productHeaders[program.language]
-      var filenames = saveFile(path.join(program.report, basename), program.outputFormat, data)
+      let filenames = saveFile(path.join(program.report, basename), program.outputFormat, data)
 
       if (filenames.length) console.log('Basic products information saved to ' + filenames.join(', '))
       console.log('All done. Total time spent: ' + prettify(new Date().getTime() - time))
@@ -157,10 +157,10 @@ function downloadProducts(categories) {
 }
 
 function saveFile(basename, formats, data) {
-  var buff
-  var names = []
+  let buff
+  let names = []
   formats.forEach(function (format) {
-    var name = basename + '.' + format
+    let name = basename + '.' + format
     try {
       switch (format) {
         case 'txt':
@@ -177,18 +177,18 @@ function saveFile(basename, formats, data) {
           break
         case 'xlsx':
           const excel = require('msexcel-builder')
-          var workbook = excel.createWorkbook(process.cwd(), name)
-          var keys = Object.keys(data)
-          var rows = keys.length
-          var cols = 0
+          let workbook = excel.createWorkbook(process.cwd(), name)
+          let keys = Object.keys(data)
+          let rows = keys.length
+          let cols = 0
           keys.forEach(function (key) {
             if (cols < data[key].length) cols = data[key].length
           })
 
 
-          var sheet1 = workbook.createSheet(date, cols, rows)
+          let sheet1 = workbook.createSheet(date, cols, rows)
           keys.forEach(function (key, i) {
-            for (var j = 0; j < data[key].length; j++)
+            for (let j = 0; j < data[key].length; j++)
               if (data[key][j]) sheet1.set(j + 1, i + 1, data[key][j])
           })
           workbook.saveSync();
@@ -208,8 +208,8 @@ function downloadProductsDetails() {
   process.stdout.write('Checking special offer (It may take up to 2 hours, be patient)...')
 
   async.each(products, function (product, calllback) {
-    var url = product[0]
-    var id = product[1]
+    let url = product[0]
+    let id = product[1]
     httpdownload(url, path.join(program.cache, date, 'details', encodeURIComponent(url)), getProductDetail, calllback)
   }, function (err) {
     console.log('done.')
@@ -220,44 +220,44 @@ function downloadProductsDetails() {
 }
 
 function getLocalDate(time) {
-  var d = time ? new Date(time) : new Date()
+  let d = time ? new Date(time) : new Date()
   return new Date(d.getTime() - d.getTimezoneOffset() / 60)
 }
 
 function cleanUp() {
   process.stdout.write('Saving...')
-  var filenames = saveFile(path.join(program.report, generateFilename('complete', false)), program.outputFormat, mergeProducts(products, specialOffers, promotions, others))
+  let filenames = saveFile(path.join(program.report, generateFilename('complete', false)), program.outputFormat, mergeProducts(products, specialOffers, promotions, others))
 
   console.log('saved to ' + filenames.join(', '))
   if (program.debug) {
-    var basename = generateFilename('special_offers_only', false)
+    let basename = generateFilename('special_offers_only', false)
     saveFile(path.join(program.report, basename), program.outputFormat, specialOffers)
-    var basename = generateFilename('promotions_only', false)
+    basename = generateFilename('promotions_only', false)
     saveFile(path.join(program.report, basename), program.outputFormat, promotions)
-    var basename = generateFilename('stocks_only', false)
+    basename = generateFilename('stocks_only', false)
     saveFile(path.join(program.report, basename), program.outputFormat, others)
   } else {
-    var basename = path.join(program.report, generateFilename('products_only', false))
+    let basename = path.join(program.report, generateFilename('products_only', false))
     process.stdout.write('Removing...')
-    var filenames = program.outputFormat.map(function (ext) {
-      var filename = basename + '.' + ext
+    let filenames = program.outputFormat.map(function (ext) {
+      let filename = basename + '.' + ext
       try {
         if (fs.accessSync(filename, fs.F_OK)) fs.unlinkSync(filename)
       } catch (e) {}
       return filename
     })
     console.log(filenames.join(', ') + ' done.')
-    var timeElapsed = new Date().getTime() - time
+    let timeElapsed = new Date().getTime() - time
     console.log('Total time spent: ' + prettify(timeElapsed))
   }
 }
 
 function updateQueryString(url, newQuery) {
-  var url2
+  let url2
   if (typeof url == 'string') {
     url2 = URL.parse(url, true)
   }
-  for (var i in newQuery) {
+  for (let i in newQuery) {
     url2.query[i] = newQuery[i]
   }
   url2.search = '?' + querystring.stringify(url2.query)
@@ -266,8 +266,8 @@ function updateQueryString(url, newQuery) {
 }
 
 function _httpdownloadAsync(url, filename, callback) {
-  var res = function (response) {
-    var str = ''
+  let res = function (response) {
+    let str = ''
     response.on('data', function (chunk) {
       str += chunk
     })
@@ -284,8 +284,8 @@ function _httpdownloadAsync(url, filename, callback) {
       callback(null, str)
     })
   }
-  var url2
-  var params = {}
+  let url2
+  let params = {}
   if (typeof url == 'string') url2 = URL.parse(url, true)
   else {
     url2 = URL.parse(url.url, true)
@@ -294,7 +294,7 @@ function _httpdownloadAsync(url, filename, callback) {
   }
   try {
 
-    var req = http.request(Object.assign({
+    let req = http.request(Object.assign({
       hostname: url2.hostname,
       port: url2.port,
       path: url2.path,
@@ -334,8 +334,8 @@ function _httpdownload(url, filename, callback, finalCallback) {
 
 function _httpdownload_old(url, filename, callback, finalCallback) {
 
-  var res = function (response) {
-    var str = ''
+  let res = function (response) {
+    let str = ''
     response.on('data', function (chunk) {
       console.log(chunk)
       str += chunk
@@ -353,8 +353,8 @@ function _httpdownload_old(url, filename, callback, finalCallback) {
       callback(str, url, finalCallback)
     })
   }
-  var url2
-  var params = {}
+  let url2
+  let params = {}
   if (typeof url == 'string') url2 = URL.parse(url, true)
   else {
     url2 = URL.parse(url.url, true)
@@ -363,7 +363,7 @@ function _httpdownload_old(url, filename, callback, finalCallback) {
   }
   try {
 
-    var req = http.request(Object.assign({
+    let req = http.request(Object.assign({
       hostname: url2.hostname,
       port: url2.port,
       path: url2.path,
@@ -383,17 +383,17 @@ function _httpdownload_old(url, filename, callback, finalCallback) {
     finalCallback()
   }
 }
-var time = new Date().getTime()
+let time = new Date().getTime()
 
-var processed = 0
+let processed = 0
 
 function getProductDetail(body, url, callback) {
   if (body.indexOf("Access Denied") > -1) {
     console.error("Server overloaded when downloading " + url)
     process.exit(1)
   }
-  var $ = cheerio.load(body)
-  var id = $('input[name=productCodePost]').attr('value')
+  let $ = cheerio.load(body)
+  let id = $('input[name=productCodePost]').attr('value')
 
   let specialOffer = []
   $('div.offer-table > div').each(function () {
@@ -422,8 +422,8 @@ function getProductDetail(body, url, callback) {
   if (processed % 50 == 0) {
 
     if (loaded < processed) {
-      var timeElapsed = new Date().getTime() - time
-      var timeleft = timeElapsed / (processed - loaded) * (Object.keys(products).length - processed)
+      let timeElapsed = new Date().getTime() - time
+      let timeleft = timeElapsed / (processed - loaded) * (Object.keys(products).length - processed)
       process.stdout.clearLine()
 
       process.stdout.cursorTo(0)
@@ -439,15 +439,15 @@ function getProductDetail(body, url, callback) {
 
 function prettify(time, fmt) {
   fmt = fmt || '%Y years %m months %d days %h hours %i minutes %s seconds'
-  var date = new Date(time)
-  var str = []
-  var Y = date.getUTCFullYear() - 1970
-  var m = date.getUTCMonth()
+  let date = new Date(time)
+  let str = []
+  let Y = date.getUTCFullYear() - 1970
+  let m = date.getUTCMonth()
   if (fmt.indexOf('%Y') == -1) m += Y * 12
-  var d = date.getUTCDate() - 1
-  var h = date.getUTCHours()
+  let d = date.getUTCDate() - 1
+  let h = date.getUTCHours()
   if (fmt.indexOf('%d') == -1) h += d * 24
-  var i = date.getUTCMinutes(),
+  let i = date.getUTCMinutes(),
     s = date.getUTCSeconds()
   if (Y) str.push(Y + ' years')
   if (m || str.length) str.push(m + ' months')
@@ -460,9 +460,9 @@ function prettify(time, fmt) {
 
 function mergeProducts(products, specialOffers, promotions, others) {
 
-  var mergedProducts = Object.assign(products)
-  var count = 0
-  var count2 = 0
+  let mergedProducts = Object.assign(products)
+  let count = 0
+  let count2 = 0
   for (let i in specialOffers)
     count = count < specialOffers[i].length ? specialOffers[i].length - 1 : count
   count = count / 2 * 3
@@ -477,8 +477,8 @@ function mergeProducts(products, specialOffers, promotions, others) {
 
   Object.keys(mergedProducts).forEach(function (id) {
 
-    var match = false
-    var minPrice = mergedProducts[id][9]
+    let match = false
+    let minPrice = mergedProducts[id][9]
 
     if (others[id])
 
@@ -489,10 +489,10 @@ function mergeProducts(products, specialOffers, promotions, others) {
     if (specialOffers[id])
 
     {
-      var tmp = specialOffers[id].slice(1)
+      let tmp = specialOffers[id].slice(1)
       while (tmp.length) {
-        var tmp2 = tmp.slice(0, 2)
-        var specialOfferPrice = Number(mergedProducts[id][9]) - Number(tmp[1]) / Number(tmp[0])
+        let tmp2 = tmp.slice(0, 2)
+        let specialOfferPrice = Number(mergedProducts[id][9]) - Number(tmp[1]) / Number(tmp[0])
         tmp2.push(specialOfferPrice)
 
         if (specialOfferPrice < minPrice) minPrice = specialOfferPrice
@@ -509,9 +509,9 @@ function mergeProducts(products, specialOffers, promotions, others) {
     mergedProducts[id].push(minPrice)
     mergedProducts[id].push((1 - minPrice / mergedProducts[id][9]) * 100 + '%')
 
-    var size = 1
+    let size = 1
 
-    var parsedSize = mergedProducts[id][7].replace('BOX', '').replace(/[^0-9xX\.]/g, '').replace(/[xX]/g, '*')
+    let parsedSize = mergedProducts[id][7].replace('BOX', '').replace(/[^0-9xX\.]/g, '').replace(/[xX]/g, '*')
 
     if (parsedSize.match(/^[\d\*]+$/g)) try {
       size = eval(parsedSize)
@@ -525,7 +525,7 @@ function mergeProducts(products, specialOffers, promotions, others) {
     if (promotions[id])
 
     {
-      var tmp = promotions[id].slice(1)
+      let tmp = promotions[id].slice(1)
       mergedProducts[id] = mergedProducts[id].concat(tmp)
       for (let k = 0; k < count2 - tmp.length; k++)
         mergedProducts[id].push('\'-')
@@ -537,7 +537,7 @@ function mergeProducts(products, specialOffers, promotions, others) {
   })
 
 
-  var newProducts = []
+  let newProducts = []
   newProducts.push(finalHeaders)
   for (let i in mergedProducts)
     newProducts.push(mergedProducts[i])
@@ -548,9 +548,9 @@ function mergeProducts(products, specialOffers, promotions, others) {
 
 function getProducts(body, url, callback) {
 
-  var $ = cheerio.load(body),
+  let $ = cheerio.load(body),
     product = []
-  var brands = $('div.brand-container input[type=checkbox]').map(function () {
+  let brands = $('div.brand-container input[type=checkbox]').map(function () {
     return $(this).attr("data-value")
   }).get()
   if (program.debug) {
@@ -574,8 +574,8 @@ function getProducts(body, url, callback) {
     //	console.log("Skipping url with wrong language: " + fullUrl )
     //	return
     //	}
-    var uri = fullUrl.split('/')
-    var id = uri[uri.length - 1].match('\\d+$')[0]
+    let uri = fullUrl.split('/')
+    let id = uri[uri.length - 1].match('\\d+$')[0]
     //'en': 'url\tid\timage path\tBrand\tBrand\tName\tName\tSize\tRecommended Retail Price\tSelling Price\tSpecial Offer\tNo Stock?\tQuantity you can buy'.split('\t')
     let productName = $(el).find('div.name p').text()
 
@@ -622,9 +622,9 @@ function getProducts(body, url, callback) {
 }
 
 function getCategory(data, url, callback) {
-  var $ = cheerio.load(data)
+  let $ = cheerio.load(data)
 
-  var categories = $('a[href*="/c/"]').map(function () {
+  let categories = $('a[href*="/c/"]').map(function () {
     return this.attribs.href
   }).get().filter(function (v) {
     return /\/c\/\d+[1-9]$/.test(v)
@@ -641,7 +641,7 @@ function banner() {
 }
 
 function list(val) {
-  var values = val.split(',')
+  let values = val.split(',')
   return values.filter(function (value) {
     return /(txt|csv|json|xlsx)/.test(value)
   })
