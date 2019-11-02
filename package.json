@@ -5,14 +5,14 @@
   "main": "parknshop.js",
   "dependencies": {
     "array-to-csv": "git+https://github.com/jonathanong/array-to-csv.git",
-    "async": "^2.0.1",
-    "cheerio": "^0.20.0",
-    "commander": "^2.9.0",
+    "async": "^3.1.0",
+    "cheerio": "^0.22.0",
+    "commander": "^4.0.0",
     "mkdirp": "^0.5.1",
     "msexcel-builder": "git+https://git@github.com/brianpow/msexcel-builder.git",
     "querystring": "^0.2.0",
     "request": "^2.88.0",
-    "slug": "^0.9.1",
+    "slug": "^1.1.0",
     "throttled-request": "^0.1.1",
     "url": "^0.11.0"
   },
