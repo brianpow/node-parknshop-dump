@@ -188,7 +188,7 @@ function saveFile(basename, formats, data) {
           let rows = keys.length
           let cols = 0
           keys.forEach(function (key) {
-            if (cols < data[key].length) cols = data[key].length
+            cols = Math.max(cols, data[key].length)
           })
 
 
