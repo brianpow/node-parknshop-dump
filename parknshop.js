@@ -47,6 +47,7 @@ var finalHeaders = []
 var outputFilename = generateFilename('complete', false)
 program.version('1.0.2')
   .option('-s, --save <filename>', 'save file as <filename>.', outputFilename)
+  .option('-D, --download-details', 'Download products detail and check for additional offer. (Warning: take lots of time)')
   .option('-d, --debug', 'save debug file')
   .option('-v, --verbose', 'print more details', verbosity, 0)
   .option('-f, --force-download', 'don\'t load cached webpages, always download from remote server')
@@ -141,7 +142,18 @@ function downloadProducts(categories) {
     httpdownload(fullUrl, path.join(program.cache, date, 'products', encodeURIComponent(fullUrl)), getProducts, callback)
   }, function (err) {
     console.log(Object.keys(products).length + ' products found.')
-    downloadProductsDetails()
+    if(program.downloadDetails)
+      downloadProductsDetails()
+    else
+    {
+      var basename = generateFilename('products_only', false)
+      let data=Object.assign(products)
+      data[0]=productHeaders[program.language]
+      var filenames = saveFile(path.join(program.report, basename), program.outputFormat, data)
+      
+      if (filenames.length) console.log('Basic products information saved to ' + filenames.join(', '))
+      console.log('All done. Total time spent: ' + prettify(new Date().getTime() - time))
+    }
   })
 }
 
@@ -188,12 +200,6 @@ function saveFile(basename, formats, data) {
 }
 
 function downloadProductsDetails() {
-
-  var basename = generateFilename('products_only', false)
-  var filenames = saveFile(path.join(program.report, basename), program.outputFormat, products)
-  //console.log([productHeaders[program.language]].concat(products))
-  //var filenames = saveFile(path.join(program.report, basename), program.outputFormat, [productHeaders[program.language]].concat(products))
-  if (filenames.length) console.log('Basic products information saved to ' + filenames.join(', '))
 
   loaded = 0
   process.stdout.write('Step 3 of 4: Checking special offer (It may take up to 2 hours, be patient)...')
@@ -370,11 +376,11 @@ function _httpdownload_old(url, filename, callback, finalCallback) {
     finalCallback()
   }
 }
-var time = 0
+var time = new Date().getTime()
+  
 var processed = 0
 
 function getProductDetail(body, url, callback) {
-  if (time == 0) time = new Date().getTime()
   if (body.indexOf("Access Denied") > -1) {
     console.error("Server overloaded when downloading " + url)
     process.exit(1)
