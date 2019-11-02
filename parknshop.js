@@ -162,7 +162,8 @@ function saveFile(basename, formats, data) {
   var names = []
   formats.forEach(function (format) {
     var name = basename + '.' + format
-    switch (format) {
+    try{
+      switch (format) {
       case 'txt':
         fs.writeFileSync(name, toCSV(data, '\t'))
         names.push(name)
@@ -195,6 +196,9 @@ function saveFile(basename, formats, data) {
         names.push(name)
         break
     }
+    }catch(error){
+    console.error(error)
+  }
   })
   return names
 }
