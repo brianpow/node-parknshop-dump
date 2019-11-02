@@ -27,11 +27,10 @@ var categories = [],
 var date = getLocalDate().toISOString().replace(/T.*/g, '')
 
 var productHeaders = {
-  'zh-hk': '網頁連結\t編號\t圖片路徑\t品牌\t品牌\t貨品名稱\t貨品名稱\t尺寸\t建議售價\t售價\t優惠\t可買數量'.split('\t'),
-  // 'en': 'url\tid\timage path\tBrand\tBrand\tName\tName\tSize\tRecommended Retail Price\tSelling Price\tRemark\tOther promotions\tStock\tQuantity you can buy'.split('\t')
-  'en': 'url\tid\timage path\tBrand\tBrand\tName\tName\tSize\tRecommended Retail Price\tSelling Price\tSpecial Offer\tQuantity you can buy'.split('\t')
-
+  'zh-hk': '網頁連結\t編號\t圖片路徑\t類別\t品牌\t貨品名稱\t貨品名稱\t尺寸\t建議售價\t售價\t優惠'.split('\t'),
+  'en': 'url\tid\timage path\tCatagories\tBrand\tName\tName\tSize\tRecommended Retail Price\tSelling Price\tSpecial Offer'.split('\t')
 }
+
 var specialOfferHeaders = {
   'zh-hk': '額外折扣數量\t額外折扣\t平均單價'.split('\t'),
   'en': 'Bulk Quantities\tBulk Discount\tAverage Discounted Unit Price'.split('\t')
@@ -564,28 +563,22 @@ function getProducts(body, url, callback) {
     var id = uri[uri.length - 1].match('\\d+$')[0]
     //'en': 'url\tid\timage path\tBrand\tBrand\tName\tName\tSize\tRecommended Retail Price\tSelling Price\tSpecial Offer\tNo Stock?\tQuantity you can buy'.split('\t')
     let productName = $(el).find('div.name p').text()
+  
     product = [
       URL.resolve(domain, fullUrl),
       id,
       $(el).find('img.lazy').eq(0).attr('src'),
-      category,
       category, //$(el).find('div.name a').eq(0).text().trim().replace(productName, ""),
+      $(el).find("div.homeProductCarousel").eq(0).attr("data-gtm-homeproductcarousel-brand"),
       //uri[1].substr(8),
       uri[2],
       productName,
       $(el).find('span.sizeUnit').eq(0).text().trim(),
       $(el).find('div.display-price div.rrp span').eq(0).text().replace('HK$', '').replace(',', '').trim(),
       $(el).find('div.display-price div.discount').eq(0).text().replace('HK$', '').replace(',', '').trim(),
-      $(el).find('div.special-offer').eq(0).text().trim(),
-      // $(el).find('dl.SpecialPro').map(function () {
-      //   return $(this).text().trim()
-      // }).filter(function () {
-      //   return this.trim().length
-      // }).get().join(', ')
-      //$(el).find("span[data-arrivalsoon]").length,
-      $(el).find("input.maxOrderQuantity").attr("value")
+      $(el).find('div.special-offer').eq(0).text().trim()
     ]
-    //$(el).find('div.special-offer').eq(0).text().trim(),
+    
     let bulkDiscount = product[10].match(/([\d.]+) \/ ([\d.]+)/)
     if (bulkDiscount) {
       bulkDiscount = eval(bulkDiscount[0])
