@@ -164,14 +164,20 @@ function saveFile(basename, formats, data) {
     try {
       switch (format) {
         case 'txt':
+          if (program.verbose > 1)
+            console.log(util.format("Saving %s...",name))
           fs.writeFileSync(name, toCSV(data, '\t'))
           names.push(name)
           break
         case 'csv':
+          if (program.verbose > 1)
+            console.log(util.format("Saving %s...",name))
           fs.writeFileSync(name, toCSV(data, ','))
           names.push(name)
           break
         case 'json':
+          if (program.verbose > 1)
+            console.log(util.format("Saving %s...",name))
           fs.writeFileSync(name, JSON.stringify(data))
           names.push(name)
           break
@@ -191,6 +197,8 @@ function saveFile(basename, formats, data) {
             for (let j = 0; j < data[key].length; j++)
               if (data[key][j]) sheet1.set(j + 1, i + 1, data[key][j])
           })
+          if (program.verbose > 1)
+            console.log(util.format("Saving %s...",name))
           workbook.saveSync();
           names.push(name)
           break
