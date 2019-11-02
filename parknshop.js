@@ -239,7 +239,7 @@ function cleanUp() {
     })
     console.log(filenames.join(', ') + ' done.')
     var timeElapsed = new Date().getTime() - time
-    console.log('Total time spent: ' + prettify(time))
+    console.log('Total time spent: ' + prettify(timeElapsed))
   }
 }
 
