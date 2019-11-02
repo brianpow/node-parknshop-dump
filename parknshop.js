@@ -75,7 +75,7 @@ throttledRequest.configure({
   requests: program.limit,
   milliseconds: 2000, //program.millisecond
 });
-process.stdout.write('Step 1 of 4: Checking categories...')
+process.stdout.write('Checking categories...')
 let fullUrl = URL.resolve(domain, program.language)
 httpdownload(fullUrl, path.join(program.cache, date, 'category', encodeURIComponent(fullUrl)), getCategory, downloadProducts)
 //throttledRequest("http://example.org")
@@ -132,7 +132,7 @@ function httpdownloadAsync(url, filename, callback) {
 
 function downloadProducts(categories) {
   console.log(categories.length + ' categories found.')
-  process.stdout.write('Step 2 of 4: Checking products...')
+  process.stdout.write('Checking products...')
   async.each(categories, function (url, callback) {
     let fullUrl = URL.resolve(domain, url)
     fullUrl = updateQueryString(fullUrl, {
@@ -202,7 +202,7 @@ function saveFile(basename, formats, data) {
 function downloadProductsDetails() {
 
   loaded = 0
-  process.stdout.write('Step 3 of 4: Checking special offer (It may take up to 2 hours, be patient)...')
+  process.stdout.write('Checking special offer (It may take up to 2 hours, be patient)...')
 
   async.each(products, function (product, calllback) {
     var url = product[0]
@@ -210,7 +210,7 @@ function downloadProductsDetails() {
     httpdownload(url, path.join(program.cache, date, 'details', encodeURIComponent(url)), getProductDetail, calllback)
   }, function (err) {
     console.log('done.')
-    process.stdout.write('Step 4 of 4: Merging Products with special offers3')
+    process.stdout.write('Merging Products with special offers3')
     cleanUp()
     console.log('All done. Total time spent: ' + prettify(new Date().getTime() - time))
   })
