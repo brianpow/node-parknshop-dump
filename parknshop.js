@@ -322,8 +322,13 @@ function _httpdownload(url, filename, callback, finalCallback) {
       console.error(error)
       callback('', url, finalCallback)
     } else {
+      try{
       if (program.cache)
         fs.writeFileSync(filename, body)
+      }catch(error)
+      {
+        console.error(error)
+      }
       callback(body, url, finalCallback)
     }
   })
