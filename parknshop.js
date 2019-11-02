@@ -604,7 +604,7 @@ function getProducts(body, url, callback) {
       console.log(product)
     products[id] = product
   })
-""
+
   let hasNextUrl = $('div.showMore').eq(0).attr('data-hasnextpage')
   if (hasNextUrl == "true") {
     let nextUrl = $('div.showMore').eq(0).attr('data-nextpageurl')
